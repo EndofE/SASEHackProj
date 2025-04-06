@@ -1,0 +1,88 @@
+{% extends "base.html" %} {% block content %}
+<h1 class="mb-4">Your Water Usage Results</h1>
+
+<div class="card mb-4">
+  <div class="card-body">
+    <h2 class="card-title">Daily Water Usage: {{ usage }} gallons</h2>
+    <p class="card-text">
+      Average in your region: {{ comparison.individual }} gallons (individual)
+    </p>
+
+    {% if usage > comparison.individual %}
+    <div class="alert alert-warning">
+      You're using {{ (usage - comparison.individual)|round(2) }} gallons more
+      than average!
+    </div>
+    {% else %}
+    <div class="alert alert-success">
+      Great job! You're using {{ (comparison.individual - usage)|round(2) }}
+      gallons less than average.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-body">
+    <h3 class="card-title">Tips to Improve</h3>
+    <ul class="list-group">
+      {% for tip in tips %}
+      <li class="list-group-item">{{ tip }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <h3 class="card-title">Environmental Impact</h3>
+    <p>
+      Water conservation helps preserve ecosystems and reduces energy used in
+      water treatment. Every gallon saved makes a difference!
+    </p>
+    <p>
+      If everyone in your region saved just 5 gallons per day, that would save
+      {{ (5 * 330000000 / 1000000)|round(1) }} million gallons daily in the US
+      alone!
+    </p>
+  </div>
+</div>
+
+<div class="card mt-4">
+  <div class="card-body">
+    <h3 class="card-title">Interactive Savings Calculator</h3>
+    <label for="showerSlider" class="form-label">
+      Adjust your shower time (minutes):
+    </label>
+    <input
+      type="range"
+      class="form-range"
+      id="showerSlider"
+      min="1"
+      max="20"
+      value="{{ form_data.shower_minutes }}"
+      oninput="updateImpact()"
+    />
+    <p id="savings" class="mt-2">
+      Current shower time: {{ form_data.shower_minutes }} mins ({{
+      (form_data.shower_minutes * 2.1)|round(1) }} gallons/day)
+    </p>
+  </div>
+</div>
+
+<script>
+  function updateImpact() {
+    const mins = document.getElementById("showerSlider").value;
+    const dailySavings = (mins * 2.1).toFixed(1);
+    const monthlySavings = (dailySavings * 30).toFixed(1);
+    document.getElementById("savings").innerHTML = `
+        Shower time: ${mins} mins (${dailySavings} gallons/day)<br>
+        <strong>Save ${monthlySavings} gallons/month!</strong>
+      `;
+  }
+</script>
+
+<a href="/game" class="btn btn-success mt-3">Play Water Saver Game</a>
+
+<a href="/" class="btn btn-primary mt-3">Calculate Again</a>
+{% endblock %}

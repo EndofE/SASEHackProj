@@ -1,0 +1,294 @@
+{% extends "base.html" %} {% block content %}
+<div class="text-center">
+  <h1 class="text-primary">💧 Water Rescue Mission</h1>
+  <p class="lead">Fix leaks before the reservoir runs dry!</p>
+
+  <!-- Game Container -->
+  <div
+    id="game-container"
+    style="width: 800px; height: 500px; margin: 0 auto; position: relative"
+  >
+    <!-- Overlay UI -->
+    <div
+      id="game-ui"
+      style="position: absolute; top: 10px; left: 10px; z-index: 100"
+    >
+      <div class="d-flex align-items-center">
+        <span class="fw-bold me-2">Water:</span>
+        <div class="progress" style="width: 200px">
+          <div id="water-bar" class="progress-bar bg-info" style="width: 100%">
+            100%
+          </div>
+        </div>
+        <span id="water-text" class="ms-2 fw-bold">100L</span>
+      </div>
+      <div class="mt-2">
+        <span class="fw-bold">Leaks Fixed:</span>
+        <span id="score" class="badge bg-success ms-2">0</span>
+      </div>
+    </div>
+
+    <!-- Timer -->
+    <div
+      id="timer"
+      style="
+        position: absolute;
+        bottom: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-weight: bold;
+        background: rgba(255, 255, 255, 0.7);
+        padding: 5px 10px;
+        border-radius: 8px;
+      "
+    >
+      Time: 0s
+    </div>
+  </div>
+
+  <div class="mt-3">
+    <button id="start-btn" class="btn btn-success btn-lg">Start Game</button>
+    <a href="/" class="btn btn-outline-primary ms-2">Back to Calculator</a>
+  </div>
+</div>
+
+<!-- Phaser only -->
+<script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
+
+<script>
+  const ASSETS = {
+    background:
+      "https://images.template.net/96315/spongebob-flower-background-yt8wo.png",
+    faucet:
+      "https://png.pngtree.com/png-vector/20240316/ourmid/pngtree-cartoon-dripping-faucet-png-image_11977886.png",
+    waterDrop:
+      "https://static.vecteezy.com/system/resources/previews/044/570/540/non_2x/single-water-drop-on-transparent-background-free-png.png",
+  };
+
+  const config = {
+    type: Phaser.AUTO,
+    width: 800,
+    height: 500,
+    parent: "game-container",
+    scene: {
+      preload: preload,
+      create: create,
+      update: update,
+    },
+    physics: {
+      default: "arcade",
+      arcade: { gravity: { y: 200 } },
+    },
+  };
+
+  let game;
+  let water = 100;
+  let score = 0;
+  let leakTimers = [];
+  let timerEvent;
+  let gameTime = 0;
+  let leakDelay = 1500;
+  let waterLossRate = 1;
+  let gameEnded = false;
+  let dropToggle = true; // for alternating droplet patterns
+
+  function preload() {
+    this.load.image("background", ASSETS.background);
+    this.load.image("faucet", ASSETS.faucet);
+    this.load.image("waterDrop", ASSETS.waterDrop);
+  }
+
+  function create() {
+    this.add.image(400, 250, "background").setDisplaySize(800, 500);
+
+    const faucetPositions = [
+      { x: 100, y: 150 }, // Left
+      { x: 700, y: 150 }, // Right
+    ];
+
+    faucetPositions.forEach(({ x, y }) => {
+      const faucet = this.add
+        .image(x, y, "faucet")
+        .setScale(0.4)
+        .setInteractive()
+        .on("pointerdown", () => {
+          faucet.setTint(0x00ff00);
+          this.time.delayedCall(200, () => faucet.clearTint());
+        });
+
+      this.tweens.add({
+        targets: faucet,
+        angle: 5,
+        duration: 1000,
+        yoyo: true,
+        repeat: -1,
+      });
+
+      const timer = this.time.addEvent({
+        delay: leakDelay,
+        callback: () => createLeak.call(this, x, y),
+        loop: true,
+      });
+
+      leakTimers.push(timer);
+    });
+
+    this.time.addEvent({
+      delay: 1000,
+      callback: () => {
+        water -= waterLossRate;
+        updateWaterUI();
+        if (water <= 0 && !gameEnded) endGame.call(this, false);
+      },
+      loop: true,
+    });
+
+    timerEvent = this.time.addEvent({
+      delay: 1000,
+      callback: () => {
+        gameTime++;
+        document.getElementById("timer").textContent = `Time: ${gameTime}s`;
+      },
+      loop: true,
+    });
+
+    this.time.addEvent({
+      delay: 8000,
+      callback: () => {
+        leakDelay = Math.max(500, leakDelay - 150);
+        waterLossRate += 0.5;
+
+        leakTimers.forEach((t, i) => {
+          t.remove();
+          leakTimers[i] = this.time.addEvent({
+            delay: leakDelay,
+            callback: () => {
+              const pos = faucetPositions[i];
+              createLeak.call(this, pos.x, pos.y);
+            },
+            loop: true,
+          });
+        });
+      },
+      loop: true,
+    });
+  }
+
+  function createLeak(x, y) {
+    if (water <= 0) return;
+
+    water -= 2;
+    updateWaterUI();
+
+    const offsetX = dropToggle ? -20 : 20;
+    dropToggle = !dropToggle;
+
+    const drop = this.physics.add
+      .image(x + offsetX, y + 50, "waterDrop")
+      .setScale(0.1)
+      .setInteractive()
+      .setVelocity(Phaser.Math.Between(-30, 30), 100);
+
+    drop.on("pointerdown", () => {
+      drop.destroy();
+      water = Math.min(100, water + 5);
+      score++;
+      document.getElementById("score").textContent = score;
+      updateWaterUI();
+    });
+
+    this.tweens.add({
+      targets: drop,
+      scale: 0.05,
+      alpha: 0,
+      duration: 2000,
+      onComplete: () => {
+        if (drop.active) drop.destroy();
+      },
+    });
+  }
+
+  function updateWaterUI() {
+    const percent = Math.max(0, water);
+    const bar = document.getElementById("water-bar");
+
+    bar.style.width = percent + "%";
+    bar.textContent = percent + "%";
+    document.getElementById("water-text").textContent = water + "L";
+
+    bar.classList.remove("bg-info", "bg-warning", "bg-danger");
+    if (water > 50) bar.classList.add("bg-info");
+    else if (water > 20) bar.classList.add("bg-warning");
+    else bar.classList.add("bg-danger");
+  }
+
+  function endGame(win) {
+    if (gameEnded) return;
+    gameEnded = true;
+
+    leakTimers.forEach((timer) => timer.remove());
+    timerEvent.remove();
+
+    const message = win
+      ? "🎉 You saved the water supply!"
+      : "💧 The reservoir ran dry!";
+
+    const alertDiv = document.createElement("div");
+    alertDiv.className = `alert text-center ${
+      win ? "alert-success" : "alert-danger"
+    }`;
+    alertDiv.style.position = "absolute";
+    alertDiv.style.top = "50%";
+    alertDiv.style.left = "50%";
+    alertDiv.style.transform = "translate(-50%, -50%)";
+    alertDiv.style.zIndex = 200;
+    alertDiv.style.width = "300px";
+    alertDiv.innerHTML = `
+      <h4>${message}</h4>
+      <p>Fixed ${score} leaks!</p>
+      <p>Total Time: ${gameTime}s</p>
+      <button onclick="window.location.reload()" class="btn btn-sm ${
+        win ? "btn-success" : "btn-danger"
+      }">Play Again</button>
+    `;
+
+    document.getElementById("game-container").appendChild(alertDiv);
+  }
+
+  function update() {}
+
+  document.getElementById("start-btn").addEventListener("click", () => {
+    document.getElementById("start-btn").disabled = true;
+    if (game) game.destroy(true);
+
+    water = 100;
+    score = 0;
+    gameTime = 0;
+    leakDelay = 1500;
+    waterLossRate = 1;
+    leakTimers = [];
+    gameEnded = false;
+    dropToggle = true;
+
+    document.getElementById("score").textContent = "0";
+    updateWaterUI();
+
+    const alerts = document.querySelectorAll(".alert");
+    alerts.forEach((alert) => alert.remove());
+
+    document.getElementById("timer").textContent = "Time: 0s";
+
+    game = new Phaser.Game(config);
+  });
+</script>
+
+<style>
+  #game-container {
+    border: 3px solid #0d6efd;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 0 20px rgba(13, 110, 253, 0.3);
+    position: relative;
+  }
+</style>
+{% endblock %}

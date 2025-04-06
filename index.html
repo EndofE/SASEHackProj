@@ -1,0 +1,52 @@
+{% extends "base.html" %} {% block content %}
+<h1 class="mb-4">Water Usage Calculator</h1>
+<form method="POST" action="/calculate">
+  <div class="mb-3">
+    <label class="form-label">Daily Shower Time (minutes)</label>
+    <input
+      type="number"
+      class="form-control"
+      name="shower_minutes"
+      step="0.1"
+      required
+    />
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Daily Toilet Flushes</label>
+    <input type="number" class="form-control" name="toilet_flushes" required />
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Daily Faucet Use (minutes)</label>
+    <input
+      type="number"
+      class="form-control"
+      name="faucet_minutes"
+      step="0.1"
+      required
+    />
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Weekly Dishwasher Uses</label>
+    <input type="number" class="form-control" name="dishwasher_uses" required />
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Weekly Laundry Loads</label>
+    <input type="number" class="form-control" name="laundry_loads" required />
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Your Region</label>
+    <select class="form-select" name="location">
+      <option value="us">United States</option>
+      <option value="europe">Europe</option>
+      <option value="asia">Asia</option>
+    </select>
+  </div>
+
+  <button type="submit" class="btn btn-primary">Calculate Water Usage</button>
+</form>
+{% endblock %}
